@@ -1,0 +1,116 @@
+/* Réinitialisation de base et police globale */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    background-color: #f4f7f9;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+}
+
+/* Conteneur principal centré */
+.container {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    text-align: center;
+}
+
+h1 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+p {
+    color: #7f8c8d;
+    margin-bottom: 30px;
+}
+
+/* Styles du formulaire */
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #555;
+}
+
+input[type="number"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    font-size: 16px;
+    box-sizing: border-box; /* Assure que le padding n'affecte pas la largeur totale */
+}
+
+input[type="number"]:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    background-color: #3498db;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+button:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
+
+
+/* Conteneur des résultats */
+.result {
+    margin-top: 30px;
+    padding: 20px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 1.1em;
+    min-height: 50px;
+}
+
+/* Styles dynamiques pour les résultats */
+.result.risk-faible {
+    background-color: #eafaf1;
+    color: #28a745;
+    border: 1px solid #a3e9a4;
+}
+
+.result.risk-modere {
+    background-color: #fff8e1;
+    color: #f39c12;
+    border: 1px solid #fde3a7;
+}
+
+.result.risk-eleve {
+    background-color: #fbeae5;
+    color: #e74c3c;
+    border: 1px solid #f5b7b1;
+}
+
+.result.risk-erreur {
+    background-color: #f2dede;
+    color: #a94442;
+    border: 1px solid #ebccd1;
+}

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyseur de Risque Cyclonique</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <main class="container">
+        <h1>Analyseur de Risque Cyclonique</h1>
+        <p>Entrez des coordonnées géographiques pour évaluer le risque cyclonique.</p>
+
+        <form id="risk-form">
+            <div class="form-group">
+                <label for="latitude">Latitude</label>
+                <input type="number" id="latitude" name="latitude" step="any" placeholder="Ex: 13.37" required>
+            </div>
+            <div class="form-group">
+                <label for="longitude">Longitude</label>
+                <input type="number" id="longitude" name="longitude" step="any" placeholder="Ex: -59.5" required>
+            </div>
+            <button type="submit" id="analyze-button">Analyser</button>
+        </form>
+
+        <div id="result-container" class="result" aria-live="polite">
+            <!-- Le résultat de l'analyse sera affiché ici -->
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

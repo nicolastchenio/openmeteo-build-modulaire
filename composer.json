@@ -1,0 +1,16 @@
+{
+    "name": "project/openmeteo-cyclone-risk",
+    "description": "A cyclone risk evaluator using a modular architecture.",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit"
+    }
+}
