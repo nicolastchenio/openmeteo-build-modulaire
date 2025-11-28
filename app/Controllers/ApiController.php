@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\WeatherData;
 use App\Services\OpenMeteoClient;
 use App\Services\CycloneRiskEvaluator;
+use App\Services\Logger;
 use App\Exceptions\NetworkException;
 use App\Exceptions\InvalidResponseException;
 
@@ -16,6 +17,13 @@ use App\Exceptions\InvalidResponseException;
  */
 class ApiController
 {
+    private Logger $logger;
+
+    public function __construct()
+    {
+        $this->logger = new Logger();
+    }
+    
     /**
      * Point d'entrée pour l'analyse de risque cyclonique.
      */
@@ -30,12 +38,15 @@ class ApiController
         $data = json_decode($jsonInput, true);
 
         if (!isset($data['latitude']) || !isset($data['longitude']) || !is_numeric($data['latitude']) || !is_numeric($data['longitude'])) {
+            $this->logger->warning("Requête invalide reçue.", ['input' => $data]);
             $this->sendJsonResponse(['error' => 'Données d\'entrée invalides. "latitude" et "longitude" numériques sont requis.'], 400);
             return;
         }
 
         $latitude = (float)$data['latitude'];
         $longitude = (float)$data['longitude'];
+        
+        $this->logger->info(sprintf("Nouvelle requête d'analyse pour lat: %f, lon: %f", $latitude, $longitude));
 
         try {
             // 1. Appeler le client API pour récupérer les données brutes
@@ -49,16 +60,20 @@ class ApiController
             // 3. Appeler le service métier avec le modèle de données
             $evaluator = new CycloneRiskEvaluator();
             $result = $evaluator->evaluate($weatherData);
+            
+            $this->logger->info(sprintf("Évaluation terminée pour lat: %f, lon: %f. Risque: %s", $latitude, $longitude, $result['risk']));
 
             // 4. Envoyer la réponse
             $this->sendJsonResponse($result);
 
         } catch (NetworkException $e) {
-            $this->sendJsonResponse(['risk' => 'Erreur Réseau', 'message' => "Impossible de contacter l'API météo : " . $e->getMessage()], 503); // 503 Service Unavailable
+            $this->logger->error("Erreur Réseau lors de la requête pour lat: $latitude, lon: $longitude. " . $e->getMessage());
+            $this->sendJsonResponse(['risk' => 'Erreur Réseau', 'message' => "Impossible de contacter l'API météo : " . $e->getMessage()], 503);
         } catch (InvalidResponseException $e) {
-            $this->sendJsonResponse(['risk' => 'Erreur Données', 'message' => "La réponse de l'API était invalide : " . $e->getMessage()], 502); // 502 Bad Gateway
+            $this->logger->error("Erreur de Données lors de la requête pour lat: $latitude, lon: $longitude. " . $e->getMessage());
+            $this->sendJsonResponse(['risk' => 'Erreur Données', 'message' => "La réponse de l'API était invalide : " . $e->getMessage()], 502);
         } catch (\Exception $e) {
-            // Gérer toute autre erreur imprévue
+            $this->logger->error("Erreur Serveur Interne pour lat: $latitude, lon: $longitude. " . $e->getMessage());
             $this->sendJsonResponse(['risk' => 'Erreur Serveur', 'message' => 'Une erreur interne est survenue : ' . $e->getMessage()], 500);
         }
     }

@@ -1,0 +1,6 @@
+[2025-11-28 11:29:13] [INFO] Nouvelle requête d'analyse pour lat: -21.000000, lon: 55.000000
+[2025-11-28 11:29:13] [INFO] Appel API vers : https://api.open-meteo.com/v1/forecast?latitude=-21&longitude=55&elevation=0&forecast_days=4&timezone=auto&hourly=temperature_2m%2Crelative_humidity_2m%2Cpressure_msl%2Cwind_speed_10m%2Cwind_direction_10m%2Cprecipitation
+[2025-11-28 11:29:14] [INFO] Réponse API reçue de https://api.open-meteo.com/v1/forecast?latitude=-21&longitude=55&elevation=0&forecast_days=4&timezone=auto&hourly=temperature_2m%2Crelative_humidity_2m%2Cpressure_msl%2Cwind_speed_10m%2Cwind_direction_10m%2Cprecipitation en 1.04s avec le code 200
+[2025-11-28 11:29:14] [INFO] Appel API vers : https://marine-api.open-meteo.com/v1/marine?latitude=-21&longitude=55&elevation=0&forecast_days=4&timezone=auto&hourly=sea_surface_temperature%2Cwave_height
+[2025-11-28 11:29:15] [INFO] Réponse API reçue de https://marine-api.open-meteo.com/v1/marine?latitude=-21&longitude=55&elevation=0&forecast_days=4&timezone=auto&hourly=sea_surface_temperature%2Cwave_height en 0.82s avec le code 200
+[2025-11-28 11:29:15] [INFO] Évaluation terminée pour lat: -21.000000, lon: 55.000000. Risque: Faible

@@ -155,3 +155,74 @@ graph TD
     vendor/bin/phpunit
     ```
     Les tests doivent tous passer, confirmant que l'architecture est saine et que les tests avec mock fonctionnent.
+
+
+--------------------------------------------------------------------------------------------------------------------------------
+
+ Explication du Fonctionnement Global
+
+  Pour augmenter la robustesse de l'application, trois nouvelles composantes ont été ajoutées sans altérer l'architecture de base : un système
+  de configuration, un service de logs, et la gestion des timeouts.
+
+   1. Système de Configuration (`config.php` & `app/Config.php`)
+       * Un fichier config.php a été ajouté à la racine du projet. Il contient toutes les valeurs de configuration (timeouts, paramètres de
+         logs, etc.) dans un simple tableau PHP. Il est facile à modifier.
+       * Une classe statique App\Config a été créée pour lire ces valeurs. Elle charge le fichier une seule fois et permet un accès simple et
+         performant depuis n'importe où dans le code via Config::get('MA_CLE').
+
+   2. Système de Logs (`app/Services/Logger.php`)
+       * Une classe Logger a été créée. Lorsqu'elle est instanciée, elle lit la configuration pour savoir si les logs sont activés et où se    
+         trouve le fichier de log (/logs/app.log par défaut).
+       * Elle expose trois méthodes simples : info(), warning(), et error().
+       * Chaque message est automatiquement préfixé par la date, l'heure et le niveau de log, assurant une traçabilité claire des événements.  
+         Si les logs sont désactivés dans config.php, aucune écriture n'est effectuée.
+
+   3. Intégration dans l'Application
+       * `OpenMeteoClient` a été mis à jour pour utiliser ces deux systèmes. Avant chaque appel cURL, il log l'URL contactée. Après l'appel, il
+         log le temps de réponse. Toutes les erreurs (timeout, JSON invalide, etc.) sont désormais logguées avec le niveau ERROR. Les timeouts
+         de connexion et de requête totale sont lus depuis config.php et appliqués à cURL. La vérification SSL est également devenue
+         configurable, ce qui résout le problème précédent de manière plus propre.
+       * `ApiController` a aussi été enrichi. Il instancie le Logger pour tracer chaque requête entrante avec ses coordonnées. Si une erreur
+         survient (une exception est attrapée), elle est logguée avant de renvoyer une réponse au client. Le résultat final de l'évaluation est
+         également tracé.
+
+  Instructions de Configuration et de Test
+
+  1. Modifier la Configuration
+
+  Ouvrez le fichier config.php à la racine du projet. Vous pouvez y modifier :
+
+   * Activer/Désactiver les logs :
+      Passez LOG_ENABLED à false pour désactiver complètement l'écriture des logs.
+
+   1     'LOG_ENABLED' => false,
+
+   * Changer le fichier de log :
+      Modifiez la valeur de LOG_FILEPATH si vous souhaitez un autre emplacement.
+
+   1     'LOG_FILEPATH' => __DIR__ . '/logs/mon_autre_fichier.log',
+
+   * Modifier les timeouts :
+      Ajustez API_TIMEOUT_CONNECT (pour établir la connexion) et API_TIMEOUT_TOTAL (pour toute la durée de la requête) en fonction de vos
+  besoins. Les valeurs sont en secondes.
+
+   1     'API_TIMEOUT_CONNECT' => 2,
+   2     'API_TIMEOUT_TOTAL' => 5,
+
+  2. Consulter les Logs
+
+  Quand l'application est utilisée, ouvrez le fichier /logs/app.log pour voir les traces d'exécution en temps réel. C'est très utile pour le
+  débogage.
+
+  3. Exécuter les Nouveaux Tests
+
+  Les tests unitaires ont été mis à jour et complétés. Pour vérifier que les nouveaux systèmes fonctionnent correctement, exécutez la commande
+  suivante depuis la racine du projet :
+
+   1 composer test
+
+  Cette commande va maintenant aussi :
+   * Vérifier que la classe Config lit correctement les valeurs.
+   * Tester que le Logger écrit bien les messages formatés dans un fichier temporaire.
+
+  L'application est désormais plus stable, plus facile à déboguer et plus configurable, tout en respectant l'architecture initiale.
