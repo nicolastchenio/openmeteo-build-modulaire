@@ -3,66 +3,67 @@
 namespace App\Services;
 
 use App\Models\WeatherData;
-use App\Services\OpenMeteoInterface;
 
 /**
  * Class CycloneRiskEvaluator
  *
- * Contient la logique métier pour évaluer un risque cyclonique
- * à partir de données météorologiques.
- *
- * Il dépend de l'abstraction (OpenMeteoInterface) plutôt que de l'implémentation
- * concrète, ce qui le rend facile à tester et indépendant des détails de l'API.
+ * Contient la logique métier pour évaluer un risque cyclonique.
+ * Cette classe est maintenant découplée de la récupération des données et
+ * opère directement sur un objet WeatherData entièrement hydraté.
  */
 class CycloneRiskEvaluator
 {
-    private OpenMeteoInterface $meteoClient;
-
-    public function __construct(OpenMeteoInterface $meteoClient)
-    {
-        $this->meteoClient = $meteoClient;
-    }
-
     /**
-     * Évalue le risque cyclonique pour une localisation donnée.
+     * Évalue le risque cyclonique à partir d'un objet de données météo.
      *
-     * @param float $latitude
-     * @param float $longitude
+     * @param WeatherData $weatherData Les données météo consolidées.
      * @return array Un tableau contenant le niveau de risque et un message.
      */
-    public function evaluate(float $latitude, float $longitude): array
+    public function evaluate(WeatherData $weatherData): array
     {
-        $weatherData = $this->meteoClient->getWeatherData($latitude, $longitude);
+        $windSpeed = $weatherData->getWindSpeed();
+        $pressure = $weatherData->getSeaLevelPressure();
+        $waveHeight = $weatherData->getWaveHeight();
 
-        if ($weatherData === null) {
+        // Si les données de base ne sont pas disponibles, on ne peut rien évaluer.
+        if ($windSpeed === null || $pressure === null) {
             return [
-                'risk' => 'Erreur',
-                'message' => 'Impossible de récupérer les données météorologiques.'
+                'risk' => 'Indéterminé',
+                'message' => 'Données de vent ou de pression atmosphérique insuffisantes pour une évaluation.'
             ];
         }
 
-        // Logique de décision très simplifiée pour l'évaluation du risque.
+        // Logique de décision améliorée incluant la hauteur des vagues.
         // Ces seuils sont des exemples et ne reflètent pas une réalité scientifique.
-        $windSpeedThreshold = 120; // km/h
-        $pressureThreshold = 1000; // hPa
+        $highWindThreshold = 120; // km/h
+        $lowPressureThreshold = 1000; // hPa
+        $highWaveThreshold = 6; // mètres
 
-        if ($weatherData->windSpeed >= $windSpeedThreshold && $weatherData->seaLevelPressure <= $pressureThreshold) {
+        $riskFactors = [];
+        if ($windSpeed >= $highWindThreshold) $riskFactors[] = 'vent extrême';
+        if ($pressure <= $lowPressureThreshold) $riskFactors[] = 'basse pression';
+        if ($waveHeight !== null && $waveHeight >= $highWaveThreshold) $riskFactors[] = 'vagues dangereuses';
+
+        if (count($riskFactors) >= 2) {
             return [
                 'risk' => 'Élevé',
                 'message' => sprintf(
-                    "Risque cyclonique ÉLEVÉ détecté. Vitesse du vent : %.1f km/h, Pression : %d hPa.",
-                    $weatherData->windSpeed,
-                    $weatherData->seaLevelPressure
+                    "Risque cyclonique ÉLEVÉ. Vitesse du vent: %.1f km/h, Pression: %d hPa, Vagues: %.1f m. Facteurs: %s.",
+                    $windSpeed,
+                    $pressure,
+                    $waveHeight ?? 0,
+                    implode(', ', $riskFactors)
                 )
             ];
         }
 
-        if ($weatherData->windSpeed >= 90) {
+        if ($windSpeed >= 90 || ($waveHeight !== null && $waveHeight >= 4)) {
             return [
                 'risk' => 'Modéré',
                 'message' => sprintf(
-                    "Conditions venteuses notables. Vitesse du vent : %.1f km/h.",
-                    $weatherData->windSpeed
+                    "Conditions notables. Vitesse du vent: %.1f km/h, Vagues: %.1f m.",
+                    $windSpeed,
+                    $waveHeight ?? 0
                 )
             ];
         }
@@ -70,9 +71,9 @@ class CycloneRiskEvaluator
         return [
             'risk' => 'Faible',
             'message' => sprintf(
-                "Conditions météorologiques normales. Vitesse du vent : %.1f km/h, Pression : %d hPa.",
-                $weatherData->windSpeed,
-                $weatherData->seaLevelPressure
+                "Conditions météorologiques normales. Vitesse du vent: %.1f km/h, Pression: %d hPa.",
+                $windSpeed,
+                $pressure
             )
         ];
     }

@@ -2,88 +2,118 @@
 
 namespace App\Services;
 
-use App\Models\WeatherData;
-use App\Services\OpenMeteoInterface;
+use App\Exceptions\NetworkException;
+use App\Exceptions\InvalidResponseException;
 
 /**
  * Class OpenMeteoClient
  *
- * Squelette du client API pour Open-Meteo.
- *
- * IMPORTANT : Cette implémentation est une simulation (mock).
- * Elle implémente OpenMeteoInterface mais ne réalise AUCUN appel HTTP réel.
- * Elle retourne des données factices pour permettre au reste de l'application
- * de fonctionner en attendant l'implémentation finale.
- *
- * La future implémentation utilisera cURL pour effectuer les requêtes HTTP.
+ * Client API réel pour Open-Meteo.
+ * Ce client effectue de vrais appels HTTP en utilisant cURL et gère les erreurs.
  */
-class OpenMeteoClient implements OpenMeteoInterface
+class OpenMeteoClient
 {
-    private const API_URL = 'https://api.open-meteo.com/v1/forecast';
+    private const ATMOSPHERIC_API_URL = 'https://api.open-meteo.com/v1/forecast';
+    private const MARINE_API_URL = 'https://marine-api.open-meteo.com/v1/marine';
+    private const CURL_TIMEOUT = 10; // en secondes
 
     /**
-     * Récupère les données météorologiques pour une latitude et une longitude données.
+     * Exécute une requête cURL et retourne le corps de la réponse décodé.
      *
-     * @param float $latitude
-     * @param float $longitude
-     * @return WeatherData|null
+     * @param string $url L'URL complète à appeler.
+     * @return array Le corps de la réponse JSON décodé en tableau PHP.
+     * @throws NetworkException Si une erreur cURL survient ou si le code de statut n'est pas 200.
+     * @throws InvalidResponseException Si la réponse n'est pas un JSON valide ou est vide.
      */
-    public function getWeatherData(float $latitude, float $longitude): ?WeatherData
+    private function executeCurlRequest(string $url): array
     {
-        // === SECTION DE SIMULATION (MOCK) ===
-        // Aucune requête cURL n'est effectuée ici.
-        // Nous retournons un jeu de données factices pour simuler une réponse réussie.
-        // La logique réelle de l'appel API sera implémentée plus tard.
+        $ch = curl_init();
 
-        // Logique de simulation : retourne des données différentes si la latitude est "spéciale"
-        if ($latitude === 13.37) {
-            // Simule des conditions de risque élevé
-            return new WeatherData(
-                windSpeed: 180.5,
-                seaLevelPressure: 980,
-                relativeHumidity: 85
-            );
-        }
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true, // Retourne la réponse au lieu de l'afficher
+            CURLOPT_TIMEOUT => self::CURL_TIMEOUT,
+            CURLOPT_FAILONERROR => true, // Échoue si le code HTTP est >= 400
 
-        // Simule des conditions normales
-        return new WeatherData(
-            windSpeed: 25.0,
-            seaLevelPressure: 1012,
-            relativeHumidity: 65
-        );
-
-        // === FUTURE IMPLÉMENTATION AVEC cURL (à ne pas décommenter maintenant) ===
-        /*
-        $queryParams = http_build_query([
-            'latitude' => $latitude,
-            'longitude' => $longitude,
-            'current' => 'wind_speed_10m,pressure_msl,relative_humidity_2m',
-            'wind_speed_unit' => 'kmh'
+            // --- SOLUTION SIMPLE MAIS NON SÉCURISÉE ---
+            // Ces deux lignes désactivent la vérification du certificat SSL.
+            // À n'utiliser que pour le développement local si vous ne pouvez pas configurer php.ini.
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
         ]);
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, self::API_URL . '?' . $queryParams);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HEADER, false);
-
         $response = curl_exec($ch);
+
+        if (curl_errno($ch)) {
+            $error_msg = curl_error($ch);
+            curl_close($ch);
+            throw new NetworkException("Erreur cURL : " . $error_msg);
+        }
+        
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($httpCode !== 200 || $response === false) {
-            return null;
+        if ($httpCode !== 200) {
+            throw new NetworkException("L'API a retourné un code de statut non-200 : " . $httpCode);
+        }
+
+        if ($response === false || $response === '') {
+            throw new InvalidResponseException("La réponse de l'API était vide.");
         }
 
         $data = json_decode($response, true);
-        if (!$data || !isset($data['current'])) {
-            return null;
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new InvalidResponseException("Impossible de décoder la réponse JSON. Erreur : " . json_last_error_msg());
         }
 
-        return new WeatherData(
-            windSpeed: $data['current']['wind_speed_10m'],
-            seaLevelPressure: $data['current']['pressure_msl'],
-            relativeHumidity: $data['current']['relative_humidity_2m']
-        );
-        */
+        return $data;
+    }
+
+    /**
+     * Récupère les données météorologiques atmosphériques.
+     *
+     * @param float $latitude
+     * @param float $longitude
+     * @return array
+     * @throws NetworkException
+     * @throws InvalidResponseException
+     */
+    public function fetchAtmosphericData(float $latitude, float $longitude): array
+    {
+        $params = [
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'elevation' => 0,
+            'forecast_days' => 4,
+            'timezone' => 'auto',
+            'hourly' => 'temperature_2m,relative_humidity_2m,pressure_msl,wind_speed_10m,wind_direction_10m,precipitation'
+        ];
+
+        $url = self::ATMOSPHERIC_API_URL . '?' . http_build_query($params);
+        return $this->executeCurlRequest($url);
+    }
+
+    /**
+     * Récupère les données météorologiques marines.
+     *
+     * @param float $latitude
+     * @param float $longitude
+     * @return array
+     * @throws NetworkException
+     * @throws InvalidResponseException
+     */
+    public function fetchMarineData(float $latitude, float $longitude): array
+    {
+        $params = [
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'elevation' => 0,
+            'forecast_days' => 4,
+            'timezone' => 'auto',
+            'hourly' => 'sea_surface_temperature,wave_height'
+        ];
+
+        $url = self::MARINE_API_URL . '?' . http_build_query($params);
+        return $this->executeCurlRequest($url);
     }
 }
